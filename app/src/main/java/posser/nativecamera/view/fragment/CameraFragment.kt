@@ -105,13 +105,13 @@ class CameraFragment(
         super.onPause()
         Log.i("posserTest", "onPause")
         releaseCamera()
-        releaseMediaRecord()
     }
 
     override fun onDestroy() {
         super.onDestroy()
         stopBackgroundThread()
         binding = null
+        releaseMediaRecord()
     }
 
     private lateinit var cameraManager: CameraManager
@@ -356,7 +356,6 @@ class CameraFragment(
             mediaRecorder = MediaRecorder()
         }
         mediaRecorder.apply {
-            reset()
             // 设置视频源为Surface
             setVideoSource(MediaRecorder.VideoSource.SURFACE)
             // 设置音频源为麦克风
@@ -444,6 +443,7 @@ class CameraFragment(
 
     private fun endMediaRecord() {
         mediaRecorder.stop()
+        mediaRecorder.reset()
         mediaRecorderCaptureSession.close()
         videoTmpPath = videoTmpPath?.let {  path ->
             CoroutineScope(EmptyCoroutineContext).launch {
