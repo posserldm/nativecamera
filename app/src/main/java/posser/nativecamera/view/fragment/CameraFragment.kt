@@ -9,6 +9,7 @@ import android.graphics.ImageFormat
 import android.graphics.SurfaceTexture
 import android.hardware.camera2.CameraAccessException
 import android.hardware.camera2.CameraCaptureSession
+import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CameraManager
 import android.hardware.camera2.CaptureRequest
@@ -23,6 +24,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.HandlerThread
 import android.util.Log
+import android.util.Size
 import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.Surface
@@ -48,6 +50,9 @@ import kotlin.coroutines.EmptyCoroutineContext
 
 private const val FRONT_CAMERA_ROTATION = 270
 private const val BACK_CAMERA_ROTATION = 90
+
+private val FRONT_CAMERA_VIDEO_SIZE = Size(1280, 720)
+private val BACK_CAMERA_VIDEO_SIZE = Size(1920,1080)
 
 class CameraFragment(
     private val cameraType: Int,
@@ -367,7 +372,10 @@ class CameraFragment(
             // 设置视频帧率
             setVideoFrameRate(30)
             // 设置视频大小
-            setVideoSize(1920, 1080)
+            val size = if (this@CameraFragment.cameraType == FRONT_CAMERA) FRONT_CAMERA_VIDEO_SIZE else BACK_CAMERA_VIDEO_SIZE
+            setVideoSize(size.width, size.height)
+            // 设置视频方向
+            setOrientationHint(if (this@CameraFragment.cameraType == FRONT_CAMERA) FRONT_CAMERA_ROTATION else BACK_CAMERA_ROTATION)
             // 设置视频编码器为H.264
             setVideoEncoder(MediaRecorder.VideoEncoder.H264)
             // 设置音频编码器为AAC
