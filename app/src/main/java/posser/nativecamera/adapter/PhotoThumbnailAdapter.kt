@@ -2,6 +2,7 @@ package posser.nativecamera.adapter
 
 import android.view.View
 import android.view.ViewGroup
+import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.RecyclerView
 
 // 相册缩略图展示
