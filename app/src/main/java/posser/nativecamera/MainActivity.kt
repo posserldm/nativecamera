@@ -3,10 +3,9 @@ package posser.nativecamera
 import android.Manifest
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.net.Uri
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.provider.MediaStore
-import android.util.Log
 import android.widget.Toast
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.bitmap.CircleCrop
@@ -26,12 +25,6 @@ private const val CAMERA_VIDEO_FUNC = CameraFragment.VIDEO
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
-    // private val frontCameraPreviewFragment: CameraPreviewFragment by lazy {
-    //     CameraPreviewFragment(CameraPreviewFragment.FRONT_CAMERA, CAMERA_PHOTO_FUNC)
-    // }
-    // private val rearCameraPreviewFragment: CameraPreviewFragment by lazy {
-    //     CameraPreviewFragment(CameraPreviewFragment.REAR_CAMERA, CAMERA_PHOTO_FUNC)
-    // }
     private var currentCameraType = CameraFragment.REAR_CAMERA
 
     private val onTakePhotoListener = object : CameraFragment.OnTakePhotoListener {
@@ -48,6 +41,27 @@ class MainActivity : AppCompatActivity() {
                     .apply(RequestOptions.bitmapTransform(CircleCrop()))
                     .into(binding.mainPhotoAlbum)
             }
+        }
+
+    }
+
+    private val mediaRecordingStateListener = object : CameraFragment.MediaRecordingStateListener {
+        override fun onStart() {
+        }
+
+        override fun onStop() {
+        }
+
+        override fun onSaveFileSuccess(uri: Uri) {
+            runOnUiThread {
+                Glide.with(this@MainActivity)
+                    .load(uri)
+                    .circleCrop()
+                    .into(binding.mainPhotoAlbum)
+            }
+        }
+
+        override fun onSaveFileFail(msg: String) {
         }
 
     }
@@ -76,8 +90,8 @@ class MainActivity : AppCompatActivity() {
     private fun initFragments() {
         frontCameraFragment.setOnTakePhotoListener(onTakePhotoListener)
         rearCameraFragment.setOnTakePhotoListener(onTakePhotoListener)
-        // frontCameraPreviewFragment.setOnTakePhotoListener(onTakePhotoListener)
-        // rearCameraPreviewFragment.setOnTakePhotoListener(onTakePhotoListener)
+        frontCameraFragment.setOnMediaRecordingStateListener(mediaRecordingStateListener)
+        rearCameraFragment.setOnMediaRecordingStateListener(mediaRecordingStateListener)
     }
 
     private fun initGalleryPhotoSrc() {
@@ -90,6 +104,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private var openedMediaRecord = false
     private fun initEvents() {
         // 前后相机切换
         binding.mainCameraTypeSelector.setOnClickListener {
@@ -107,6 +122,11 @@ class MainActivity : AppCompatActivity() {
                 getCurrentCameraFragment().takePhoto()
             } else {
                 getCurrentCameraFragment().startOrEndMediaRecord()
+                Glide.with(this)
+                    .load(if (openedMediaRecord) R.drawable.video_start_record2 else R.drawable.video_stop_record)
+                    .apply(RequestOptions.bitmapTransform(CircleCrop()))
+                    .into(binding.mainCameraSwitch)
+                openedMediaRecord = !openedMediaRecord
             }
         }
         // 拍照功能选择

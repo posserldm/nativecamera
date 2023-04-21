@@ -10,18 +10,52 @@ import android.os.Environment
 import android.provider.MediaStore
 import android.util.Log
 import android.util.Size
+import android.widget.Toast
 import java.io.File
 import java.io.IOException
 import kotlin.math.sin
 
 fun crateMediaMp4File(context: Context): String {
-    val filename = "${System.currentTimeMillis()}.mp4"
-    val dir = context.getExternalFilesDir(null)
-
-    return if (dir == null) {
+    val filename = "v_${System.currentTimeMillis()}.mp4"
+    val dir = context.getExternalFilesDir(Environment.DIRECTORY_MOVIES)
+    val filePath = if (dir == null) {
         filename
     } else {
         "${dir.absolutePath}/$filename"
+    }
+    Log.i("posserTest", filePath)
+    return filePath
+}
+
+fun saveVideoToPublicDir(context: Context, filePath: String, saveResultCallback: (videoUri: Uri?, result: Boolean) -> Unit ) {
+    val filename = filePath.split("/").last()
+    val contentValues = ContentValues().apply {
+        put(MediaStore.Video.Media.DISPLAY_NAME, filename)
+        put(MediaStore.Video.Media.MIME_TYPE, "video/mp4")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            put(MediaStore.Video.Media.RELATIVE_PATH, "${Environment.DIRECTORY_MOVIES}/custom/camera")
+            put(MediaStore.Video.Media.IS_PENDING, 1)
+        }
+    }
+    val resolver = context.contentResolver
+    val uri = resolver?.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, contentValues)
+
+    uri?.let {
+        try {
+            val fileSrc = File(filePath)
+            resolver.openOutputStream(it).use { out ->
+                out?.write(fileSrc.readBytes())
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                contentValues.put(MediaStore.Video.Media.IS_PENDING, 0)
+                resolver.update(uri, contentValues, null, null)
+            }
+            fileSrc.delete()
+            saveResultCallback(uri, true)
+        } catch (e: IOException) {
+            saveResultCallback(null, false)
+            Toast.makeText(context, e.message, Toast.LENGTH_LONG).show()
+        }
     }
 }
 
@@ -90,7 +124,6 @@ fun getLastMediaUri(context: Context):Uri? {
     cursor?.use {
         if (it.moveToFirst()) {
             val columnIndex = it.getColumnIndex(MediaStore.Images.Media._ID)
-            val i = it.getColumnIndex(MediaStore.Images.Media.DATA)
             val id = it.getLong(columnIndex)
             return ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
         }

@@ -18,6 +18,7 @@ import android.hardware.camera2.params.SessionConfiguration
 import android.media.Image
 import android.media.ImageReader
 import android.media.MediaRecorder
+import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.HandlerThread
@@ -30,20 +31,20 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.core.app.ActivityCompat
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import posser.nativecamera.databinding.FragmentCameraBinding
 import posser.nativecamera.util.ImageSize
 import posser.nativecamera.util.crateMediaMp4File
 import posser.nativecamera.util.saveImageToGallery
+import posser.nativecamera.util.saveVideoToPublicDir
 import java.io.FileNotFoundException
 import java.io.IOException
 import java.nio.ByteBuffer
-import java.util.concurrent.CompletableFuture
-import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicReference
+import kotlin.coroutines.EmptyCoroutineContext
 
 private const val FRONT_CAMERA_ROTATION = 270
 private const val BACK_CAMERA_ROTATION = 90
@@ -84,7 +85,6 @@ class CameraFragment(
         return binding?.root
     }
 
-
     override fun onResume() {
         super.onResume()
         initImageReader()
@@ -100,6 +100,7 @@ class CameraFragment(
         super.onPause()
         Log.i("posserTest", "onPause")
         releaseCamera()
+        releaseMediaRecord()
     }
 
     override fun onDestroy() {
@@ -123,10 +124,12 @@ class CameraFragment(
                 }
 
                 override fun onDisconnected(camera: CameraDevice) {
+                    Log.i("posserTest", "initCamera onDisconnected")
                     releaseCamera()
                 }
 
                 override fun onError(camera: CameraDevice, error: Int) {
+                    Log.i("posserTest", "initCamera onError")
                     releaseCamera()
                 }
             }
@@ -164,6 +167,7 @@ class CameraFragment(
                 override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) {}
 
                 override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {
+                    Log.i("posserTest", "initCameraPreviewTexture onSurfaceTextureDestroyed")
                     releaseCamera()
                     return true
                 }
@@ -184,7 +188,6 @@ class CameraFragment(
     private lateinit var takePhotoRequestBuilder: CaptureRequest.Builder
     fun takePhoto() {
         try {
-            // initImageReader()
             prepareTakePhotoRequestBuilder()
             stopTakePhotoPreview()
             onTakePhotoListener?.onStart()
@@ -253,6 +256,7 @@ class CameraFragment(
             }
 
             override fun onConfigureFailed(session: CameraCaptureSession) {
+                Log.i("posserTest", "startTakePhotoPreview onConfigureFailed")
                 releaseCamera()
             }
         }
@@ -328,7 +332,6 @@ class CameraFragment(
 
     private var recording = false
     fun enterMediaRecordMode() {
-        if (cameraMode == VIDEO) return
         cameraMode = VIDEO
     }
 
@@ -341,6 +344,7 @@ class CameraFragment(
     }
 
     private lateinit var mediaRecorder: MediaRecorder
+    private var videoTmpPath: String? = null
     private fun initMediaRecorder() {
         if (!this::mediaRecorder.isInitialized) {
             // 创建一个MediaRecorder对象
@@ -355,7 +359,9 @@ class CameraFragment(
             // 设置输出格式为MPEG_4
             setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
             // 设置输出文件
-            setOutputFile(crateMediaMp4File(this@CameraFragment.requireContext()))
+            val filePath = crateMediaMp4File(this@CameraFragment.requireContext())
+            videoTmpPath = filePath
+            setOutputFile(filePath)
             // 设置视频编码的比特率
             setVideoEncodingBitRate(10000000)
             // 设置视频帧率
@@ -369,61 +375,40 @@ class CameraFragment(
         }
     }
 
-    private lateinit var mediaRecordRequestBuilder: CaptureRequest.Builder
     private lateinit var mediaRecorderCaptureSession: CameraCaptureSession
-    private lateinit var mediaRecorderCaptureCallback: CameraCaptureSession.StateCallback
     private lateinit var mediaRecorderPreviewSurface: Surface
-    private lateinit var mediaRecorderConfigurationList: List<OutputConfiguration>
     private lateinit var mediaRecorderThreadPool: ExecutorService
     private fun startMediaRecordPreview() {
-        mediaRecordRequestBuilder =
-            cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_RECORD).apply {
-                addTarget(takePhotoPreviewSurface)
-            }
-        mediaRecorderPreviewSurface = Surface(binding?.cameraPreview?.surfaceTexture)
-        mediaRecorderCaptureCallback = object : CameraCaptureSession.StateCallback() {
-            override fun onConfigured(session: CameraCaptureSession) {
-                mediaRecorderCaptureSession = session
-                mediaRecorderCaptureSession.setRepeatingRequest(mediaRecordRequestBuilder.build(), null, backgroundHandler)
-            }
-
-            override fun onConfigureFailed(session: CameraCaptureSession) {
-                releaseCamera()
-            }
-        }
-        mediaRecorderConfigurationList = listOf(
-            OutputConfiguration(mediaRecorderPreviewSurface)
-        )
-        if (!this::mediaRecorderThreadPool.isInitialized) {
-            mediaRecorderThreadPool = Executors.newFixedThreadPool(5)
-        }
-        val sessionConfiguration = SessionConfiguration(
-            SessionConfiguration.SESSION_REGULAR, mediaRecorderConfigurationList, mediaRecorderThreadPool, mediaRecorderCaptureCallback)
-
-        cameraDevice.createCaptureSession(sessionConfiguration)
+        startTakePhotoPreview()
     }
 
     private fun startMediaRecord() {
         initMediaRecorder()
         mediaRecorder.prepare()
-        mediaRecordRequestBuilder =
+        val mediaRecordRequestBuilder =
             cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_RECORD).apply {
+                val rotation = if (cameraType == FRONT_CAMERA) FRONT_CAMERA_ROTATION else BACK_CAMERA_ROTATION
+                set(CaptureRequest.JPEG_ORIENTATION, rotation)
                 addTarget(takePhotoPreviewSurface)
                 addTarget(mediaRecorder.surface)
             }
-        mediaRecorderPreviewSurface = Surface(binding?.cameraPreview?.surfaceTexture)
-        mediaRecorderCaptureCallback = object : CameraCaptureSession.StateCallback() {
+        if (!this::mediaRecorderPreviewSurface.isInitialized) {
+            mediaRecorderPreviewSurface = Surface(binding?.cameraPreview?.surfaceTexture)
+        }
+        val mediaRecorderCaptureCallback = object : CameraCaptureSession.StateCallback() {
             override fun onConfigured(session: CameraCaptureSession) {
                 mediaRecorderCaptureSession = session
                 mediaRecorderCaptureSession.setRepeatingRequest(mediaRecordRequestBuilder.build(), null, backgroundHandler)
                 mediaRecorder.start()
+                recording = true
             }
 
             override fun onConfigureFailed(session: CameraCaptureSession) {
+                Log.i("posserTest", "startMediaRecord onConfigureFailed")
                 releaseCamera()
             }
         }
-        mediaRecorderConfigurationList = listOf(
+        val mediaRecorderConfigurationList = listOf(
             OutputConfiguration(mediaRecorderPreviewSurface),
             OutputConfiguration(mediaRecorder.surface)
         )
@@ -436,10 +421,40 @@ class CameraFragment(
         cameraDevice.createCaptureSession(sessionConfiguration)
     }
 
+    interface MediaRecordingStateListener {
+        fun onStart()
+        fun onStop()
+        fun onSaveFileSuccess(uri: Uri)
+        fun onSaveFileFail(msg: String)
+    }
+
+    private var onMediaRecordingStateListener: MediaRecordingStateListener? = null
+
+    fun setOnMediaRecordingStateListener(listener: MediaRecordingStateListener) {
+        onMediaRecordingStateListener = listener
+    }
+
     private fun endMediaRecord() {
         mediaRecorder.stop()
+        mediaRecorderCaptureSession.close()
+        videoTmpPath = videoTmpPath?.let {  path ->
+            CoroutineScope(EmptyCoroutineContext).launch {
+                saveVideoToPublicDir(this@CameraFragment.requireContext(), path) { videoUri, result ->
+                    if (videoUri != null && result) {
+                        onMediaRecordingStateListener?.onSaveFileSuccess(videoUri)
+                    }
+                }
+            }
+            null
+        }
         startMediaRecordPreview()
         recording = false
+    }
+
+    private fun releaseMediaRecord() {
+        if (this::mediaRecorder.isInitialized) {
+            mediaRecorder.release()
+        }
     }
 
     private fun showToast(msg: String?) {
