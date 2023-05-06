@@ -1,6 +1,7 @@
 package posser.nativecamera
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.net.Uri
@@ -14,6 +15,7 @@ import posser.nativecamera.databinding.ActivityMainBinding
 import posser.nativecamera.util.checkSelfPermissionCompat
 import posser.nativecamera.util.getLastMediaUri
 import posser.nativecamera.util.requestPermissionsCompat
+import posser.nativecamera.view.PhotoAlbumActivity
 import posser.nativecamera.view.fragment.CameraFragment
 import posser.nativecamera.view.fragment.CameraPreviewFragment
 
@@ -106,6 +108,14 @@ class MainActivity : AppCompatActivity() {
 
     private var openedMediaRecord = false
     private fun initEvents() {
+        switchCameraEvent()
+        cameraActionEvent()
+        enterTakePhotoModeEvent()
+        enterMediaRecordModeEvent()
+        enterPhotoAlbumEvent()
+    }
+
+    private fun switchCameraEvent() {
         // 前后相机切换
         binding.mainCameraTypeSelector.setOnClickListener {
             currentCameraType = if (currentCameraType == CameraFragment.REAR_CAMERA) {
@@ -115,7 +125,9 @@ class MainActivity : AppCompatActivity() {
             }
             checkCameraPreview(currentCameraType)
         }
+    }
 
+    private fun cameraActionEvent() {
         // 拍照或开启/关闭录像
         binding.mainCameraSwitch.setOnClickListener {
             if (currentCameraFunction == CAMERA_PHOTO_FUNC) {
@@ -129,6 +141,9 @@ class MainActivity : AppCompatActivity() {
                 openedMediaRecord = !openedMediaRecord
             }
         }
+    }
+
+    private fun enterTakePhotoModeEvent() {
         // 拍照功能选择
         binding.mainCameraSelector.setOnClickListener {
             if (currentCameraFunction != CAMERA_PHOTO_FUNC) {
@@ -145,6 +160,9 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    private fun enterMediaRecordModeEvent() {
         // 录像功能选择
         binding.mainVideoSelector.setOnClickListener {
             if (currentCameraFunction != CAMERA_VIDEO_FUNC) {
@@ -160,6 +178,14 @@ class MainActivity : AppCompatActivity() {
                     enterMediaRecordMode()
                 }
             }
+        }
+    }
+
+    private fun enterPhotoAlbumEvent() {
+        // 打开相册
+        binding.mainPhotoAlbum.setOnClickListener {
+            val intent = Intent(this, PhotoAlbumActivity::class.java)
+            startActivity(intent)
         }
     }
 

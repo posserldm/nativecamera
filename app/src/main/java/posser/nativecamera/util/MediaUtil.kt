@@ -13,7 +13,17 @@ import android.util.Size
 import android.widget.Toast
 import java.io.File
 import java.io.IOException
-import kotlin.math.sin
+
+data class MediaInfo(
+    val uri: Uri,
+    val type: Int,
+    val addTime: Long
+) {
+    companion object {
+        const val TYPE_IMAGE = 0
+        const val TYPE_VIDEO = 1
+    }
+}
 
 fun crateMediaMp4File(context: Context): String {
     val filename = "v_${System.currentTimeMillis()}.mp4"
@@ -27,7 +37,7 @@ fun crateMediaMp4File(context: Context): String {
     return filePath
 }
 
-fun saveVideoToPublicDir(context: Context, filePath: String, saveResultCallback: (videoUri: Uri?, result: Boolean) -> Unit ) {
+fun saveVideoToPublicDir(context: Context, filePath: String, saveResultCallback: (videoUri: Uri?, result: Boolean) -> Unit) {
     val filename = filePath.split("/").last()
     val contentValues = ContentValues().apply {
         put(MediaStore.Video.Media.DISPLAY_NAME, filename)
@@ -62,7 +72,7 @@ fun saveVideoToPublicDir(context: Context, filePath: String, saveResultCallback:
 // 没有适配别的手机，现在中适配了我自己的
 object ImageSize {
     val FRONT_CAMERA_IMAGE_SIZE = Size(4608, 3456)
-    val BACK_CAMERA_IMAGE_SIZE = Size(2736,3648)
+    val BACK_CAMERA_IMAGE_SIZE = Size(2736, 3648)
 }
 
 /**
@@ -114,21 +124,93 @@ fun saveImageToGallery(context: Context, bitmap: Bitmap, saveResultCallback: (ph
     }
 }
 
-fun getLastMediaUri(context: Context):Uri? {
-    val contentResolver = context.contentResolver
+fun getLastMediaUri(context: Context): Uri? {
+    val videoList = getVideoList(context)
+    val imageList = getImageList(context)
+    if (videoList.isNotEmpty() && imageList.isNotEmpty()) {
+        return if (videoList.first().addTime > imageList.first().addTime) videoList.first().uri else imageList.first().uri
+    }
+    if (videoList.isNotEmpty()) {
+        return videoList.first().uri
+    }
+    if (imageList.isNotEmpty()) {
+        return imageList.first().uri
+    }
+    Log.i("posserTest", "您还没有拍照或拍视频哦")
+    return null
+}
+
+fun getMediaInfoList(context: Context): List<MediaInfo> {
+    val videoList = getVideoList(context)
+    val imageList = getImageList(context)
+    val mediaList = mutableListOf<MediaInfo>()
+    if (videoList.isNotEmpty() && imageList.isNotEmpty()) {
+        var i = 0
+        var j = 0
+        while (i < videoList.size && j < imageList.size) {
+            if (videoList[i].addTime > imageList[j].addTime) {
+                mediaList.add(videoList[i])
+                i++
+            } else {
+                mediaList.add(imageList[j])
+                j++
+            }
+        }
+        if (i < videoList.size) {
+            mediaList.addAll(videoList.subList(i, videoList.size))
+        }
+        if (j < imageList.size) {
+            mediaList.addAll(imageList.subList(j, imageList.size))
+        }
+    }
+    Log.i("posserTest", "一个查询到了 ${mediaList.size} 个媒体文件")
+    return mediaList
+}
+
+
+private fun getImageList(context: Context): List<MediaInfo> {
+    val resolver = context.contentResolver
     val projection = arrayOf(MediaStore.Images.Media._ID, MediaStore.Images.Media.DATA, MediaStore.Images.Media.DATE_ADDED)
-    val selection = "${MediaStore.Files.FileColumns.DATA} like ?"
+    val selection = "${MediaStore.Images.Media.DATA} like ?"
     val selectionArgs = arrayOf("%/custom/camera/%")
     val sortOrder = "${MediaStore.Files.FileColumns.DATE_ADDED} DESC"
-    val cursor = contentResolver.query(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, projection, selection, selectionArgs, sortOrder)
-    cursor?.use {
-        if (it.moveToFirst()) {
-            val columnIndex = it.getColumnIndex(MediaStore.Images.Media._ID)
-            val id = it.getLong(columnIndex)
-            return ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
+    val cursor =
+        resolver.query(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, projection, selection, selectionArgs, sortOrder)
+
+    val list = mutableListOf<MediaInfo>()
+    cursor?.use { cur ->
+        while (cur.moveToNext()) {
+            val addTimeCol = cur.getColumnIndex(MediaStore.Images.Media.DATE_ADDED)
+            val addTime = cur.getLong(addTimeCol)
+            val idCol = cur.getColumnIndex(MediaStore.Images.Media._ID)
+            val id = cur.getLong(idCol)
+            list.add(MediaInfo(ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id), MediaInfo.TYPE_IMAGE, addTime))
         }
-
     }
-    return null
+    Log.i("posserTest", "一共查询到 ${list.size} 张照片")
+    return list
+}
 
+private fun getVideoList(context: Context): List<MediaInfo> {
+
+    val resolver = context.contentResolver
+    val projection = arrayOf(MediaStore.Video.Media._ID, MediaStore.Video.Media.DATA, MediaStore.Video.Media.DATE_ADDED)
+    val selection = "${MediaStore.Video.Media.DATA} like ?"
+    val selectionArgs = arrayOf("%/custom/camera/%")
+    val sortOrder = "${MediaStore.Files.FileColumns.DATE_ADDED} DESC"
+    val cursor =
+        resolver.query(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, projection, selection, selectionArgs, sortOrder)
+
+    val list = mutableListOf<MediaInfo>()
+    cursor?.use { cur ->
+        while (cur.moveToNext()) {
+            val addTimeCol = cur.getColumnIndex(MediaStore.Video.Media.DATE_ADDED)
+            val addTime = cur.getLong(addTimeCol)
+            val idCol = cur.getColumnIndex(MediaStore.Video.Media._ID)
+            val id = cur.getLong(idCol)
+            list.add(MediaInfo(ContentUris.withAppendedId(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, id), MediaInfo.TYPE_VIDEO, addTime))
+        }
+    }
+    Log.i("posserTest", "一共查询到 ${list.size} 个视频")
+    return list
 }
