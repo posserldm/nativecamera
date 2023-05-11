@@ -9,7 +9,7 @@
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="60dp"
+        android:layout_height="50dp"
         android:orientation="horizontal">
 
         <ImageView
@@ -28,16 +28,18 @@
             android:text="照片标题" />
 
         <ImageView
-            android:layout_width="40dp"
+            android:id="@+id/pa_photo_list"
+            android:layout_width="30dp"
             android:layout_height="match_parent"
             android:layout_marginEnd="10dp"
-            android:src="@mipmap/ic_launcher" />
+            android:src="@drawable/suoluetu" />
 
         <ImageView
-            android:layout_width="40dp"
+            android:id="@+id/pa_photo_info"
+            android:layout_width="30dp"
             android:layout_height="match_parent"
             android:layout_marginEnd="10dp"
-            android:src="@drawable/ic_outline_details_24" />
+            android:src="@drawable/detail" />
     </LinearLayout>
 
     <androidx.viewpager2.widget.ViewPager2

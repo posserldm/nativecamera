@@ -50,5 +50,9 @@ dependencies {
     annotationProcessor 'com.github.bumptech.glide:compiler:4.10.0'
     implementation 'com.google.android.exoplayer:exoplayer-core:2.17.0'
     implementation 'com.google.android.exoplayer:exoplayer-ui:2.17.0'
+    // https://mvnrepository.com/artifact/com.drewnoakes/metadata-extractor
+    implementation 'com.drewnoakes:metadata-extractor:2.11.0'
+    implementation 'androidx.media:media:1.4.3'
+
 
 }

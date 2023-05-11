@@ -7,6 +7,8 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
+import android.os.Parcel
+import android.os.Parcelable
 import android.provider.MediaStore
 import android.util.Log
 import android.util.Size
@@ -17,12 +19,41 @@ import java.io.IOException
 data class MediaInfo(
     val uri: Uri,
     val type: Int,
-    val addTime: Long
-) {
+    val data: String,
+    val addTime: Long,
+) : Parcelable {
+
+    constructor(parcel: Parcel) : this(
+        parcel.readParcelable(Uri::class.java.classLoader)!!,
+        parcel.readInt(),
+        parcel.readString()!!,
+        parcel.readLong())
+
     companion object {
         const val TYPE_IMAGE = 0
         const val TYPE_VIDEO = 1
+        @JvmField val CREATOR = object  : Parcelable.Creator<MediaInfo> {
+            override fun createFromParcel(parcel: Parcel): MediaInfo {
+                return MediaInfo(parcel)
+            }
+
+            override fun newArray(size: Int): Array<MediaInfo?> {
+                return arrayOfNulls(size)
+            }
+        }
     }
+
+    override fun writeToParcel(parcel: Parcel, flags: Int) {
+        parcel.writeParcelable(uri, flags)
+        parcel.writeInt(type)
+        parcel.writeString(data)
+        parcel.writeLong(addTime)
+    }
+
+    override fun describeContents(): Int {
+        return 0
+    }
+
 }
 
 fun crateMediaMp4File(context: Context): String {
@@ -167,10 +198,10 @@ fun getMediaInfoList(context: Context): List<MediaInfo> {
     return mediaList
 }
 
-
 private fun getImageList(context: Context): List<MediaInfo> {
     val resolver = context.contentResolver
-    val projection = arrayOf(MediaStore.Images.Media._ID, MediaStore.Images.Media.DATA, MediaStore.Images.Media.DATE_ADDED)
+    val projection =
+        arrayOf(MediaStore.Images.Media._ID, MediaStore.Images.Media.DATA, MediaStore.Images.Media.DATE_ADDED)
     val selection = "${MediaStore.Images.Media.DATA} like ?"
     val selectionArgs = arrayOf("%/custom/camera/%")
     val sortOrder = "${MediaStore.Files.FileColumns.DATE_ADDED} DESC"
@@ -184,7 +215,9 @@ private fun getImageList(context: Context): List<MediaInfo> {
             val addTime = cur.getLong(addTimeCol)
             val idCol = cur.getColumnIndex(MediaStore.Images.Media._ID)
             val id = cur.getLong(idCol)
-            list.add(MediaInfo(ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id), MediaInfo.TYPE_IMAGE, addTime))
+            val dataCol = cur.getColumnIndex(MediaStore.Images.Media.DATA)
+            val data = cur.getString(dataCol)
+            list.add(MediaInfo(ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id), MediaInfo.TYPE_IMAGE, data, addTime))
         }
     }
     Log.i("posserTest", "一共查询到 ${list.size} 张照片")
@@ -194,7 +227,8 @@ private fun getImageList(context: Context): List<MediaInfo> {
 private fun getVideoList(context: Context): List<MediaInfo> {
 
     val resolver = context.contentResolver
-    val projection = arrayOf(MediaStore.Video.Media._ID, MediaStore.Video.Media.DATA, MediaStore.Video.Media.DATE_ADDED)
+    val projection =
+        arrayOf(MediaStore.Video.Media._ID, MediaStore.Video.Media.DATA, MediaStore.Video.Media.DATE_ADDED)
     val selection = "${MediaStore.Video.Media.DATA} like ?"
     val selectionArgs = arrayOf("%/custom/camera/%")
     val sortOrder = "${MediaStore.Files.FileColumns.DATE_ADDED} DESC"
@@ -208,7 +242,9 @@ private fun getVideoList(context: Context): List<MediaInfo> {
             val addTime = cur.getLong(addTimeCol)
             val idCol = cur.getColumnIndex(MediaStore.Video.Media._ID)
             val id = cur.getLong(idCol)
-            list.add(MediaInfo(ContentUris.withAppendedId(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, id), MediaInfo.TYPE_VIDEO, addTime))
+            val dadaCol = cur.getColumnIndex(MediaStore.Video.Media.DATA)
+            val data = cur.getString(dadaCol)
+            list.add(MediaInfo(ContentUris.withAppendedId(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, id), MediaInfo.TYPE_VIDEO, data, addTime))
         }
     }
     Log.i("posserTest", "一共查询到 ${list.size} 个视频")
