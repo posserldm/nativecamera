@@ -19,7 +19,7 @@ import java.util.concurrent.Executors
 // 相册activity
 class PhotoAlbumActivity : AppCompatActivity() {
 
-    val format = SimpleDateFormat("yyyy年MM月dd HH:mm")
+    private val format = SimpleDateFormat("yyyy年MM月dd HH:mm")
 
     private lateinit var binding: ActivityPhotoAblumBinding
     private lateinit var mediaInfoList: List<MediaInfo>
@@ -124,6 +124,10 @@ class PhotoAlbumActivity : AppCompatActivity() {
                     }
                 }
             }
+        }
+        // 返回
+        binding.paBack.setOnClickListener {
+            finish()
         }
     }
 
