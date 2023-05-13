@@ -12,7 +12,7 @@
         android:layout_width="match_parent"
         android:layout_height="50dp"
         android:gravity="center_vertical"
-        android:text="这个是标题" />
+        android:text="相册缩略图" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/tn_photo_rec"

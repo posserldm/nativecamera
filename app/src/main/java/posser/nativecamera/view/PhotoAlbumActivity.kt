@@ -77,8 +77,9 @@ class PhotoAlbumActivity : AppCompatActivity() {
     private fun initEvent() {
         // 启动相册缩略图
         binding.paPhotoList.setOnClickListener {
+            val arrList = java.util.ArrayList<MediaInfo>().apply { addAll(mediaInfoList) }
             val i = Intent(this, ThumbnailActivity::class.java)
-            i.putExtra("mediaInfoList", mediaInfoList.toTypedArray())
+            i.putParcelableArrayListExtra("mediaInfoList", arrList)
             startActivity(i)
         }
         // 显示媒体文件详情

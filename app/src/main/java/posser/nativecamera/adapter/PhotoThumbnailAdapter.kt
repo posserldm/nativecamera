@@ -1,18 +1,13 @@
 package posser.nativecamera.adapter
 
-import android.app.Activity
-import android.content.Context
 import android.content.Intent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.FrameLayout
 import android.widget.ImageView
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.contentValuesOf
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
-import com.google.android.exoplayer2.audio.AudioCapabilitiesReceiver.Listener
 import posser.nativecamera.R
 import posser.nativecamera.util.MediaInfo
 import posser.nativecamera.view.VideoPlayerActivity
